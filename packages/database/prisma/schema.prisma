@@ -1,0 +1,981 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/client"
+  moduleFormat = "esm"
+  engineType   = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum PermissionScope {
+  OWN
+  ASSIGNED
+  ANY
+}
+
+enum EditorialStatus {
+  DRAFT
+  IN_REVIEW
+  CHANGES_REQUESTED
+  APPROVED
+}
+
+enum PublicationStatus {
+  NEVER_PUBLISHED
+  SCHEDULED
+  PUBLISHED
+  UNPUBLISHED
+  ARCHIVED
+}
+
+enum ContentKind {
+  NEWS
+  OPINION
+  COMMUNIQUE
+  SPONSORED
+  DEMONSTRATION
+}
+
+enum RevisionCheckpoint {
+  SUBMITTED
+  APPROVED
+  PUBLISHED
+  RESTORED
+}
+
+enum ReviewDecision {
+  ENDORSED
+  CHANGES_REQUESTED
+}
+
+enum SourceClass {
+  PRIMARY
+  SECONDARY
+}
+
+enum SourceKind {
+  OFFICIAL
+  DOCUMENT
+  INTERVIEW
+  AGENCY
+  RESEARCH
+  WEBSITE
+  OTHER
+}
+
+enum MediaStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  QUARANTINED
+  REJECTED
+}
+
+enum MediaVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum MediaRole {
+  HERO
+  GALLERY
+  INLINE
+  VIDEO
+  AUDIO
+  SOCIAL
+}
+
+enum IndexPolicy {
+  INDEX_FOLLOW
+  NOINDEX_FOLLOW
+  NOINDEX_NOFOLLOW
+}
+
+enum StructuredDataType {
+  NEWS_ARTICLE
+  ARTICLE
+}
+
+enum SeoSeverity {
+  ERROR
+  WARNING
+  INFO
+}
+
+enum SeoAuditStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+}
+
+enum EditorialCommentKind {
+  GENERAL
+  CHANGE_REQUEST
+  REVIEW_NOTE
+  APPROVAL_NOTE
+  CORRECTION
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+}
+
+enum HomepageSectionType {
+  LATEST_NEWS
+  FEATURED_NEWS
+}
+
+enum HomepageSourceMode {
+  AUTOMATIC
+  MANUAL
+}
+
+enum DeviceTarget {
+  ALL
+  DESKTOP
+  MOBILE
+}
+
+model User {
+  id            String     @id @default(uuid()) @db.Uuid
+  name          String
+  email         String     @unique
+  emailVerified Boolean    @default(false) @map("email_verified")
+  image         String?
+  status        UserStatus @default(INVITED)
+  sessionVersion Int       @default(0) @map("session_version")
+  lastLoginAt   DateTime?  @map("last_login_at") @db.Timestamptz(6)
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt     DateTime?  @map("deleted_at") @db.Timestamptz(6)
+
+  sessions             Session[]
+  accounts             Account[]
+  authorProfile        AuthorProfile?
+  userRoles            UserRole[]       @relation("UserRoleUser")
+  roleAssignments      UserRole[]       @relation("UserRoleAssignedBy")
+  roleRevocations      UserRole[]       @relation("UserRoleRevokedBy")
+  permissionGrants     RolePermission[] @relation("RolePermissionGrantedBy")
+  permissionRevocations RolePermission[] @relation("RolePermissionRevokedBy")
+  createdArticles      Article[]        @relation("ArticleCreatedBy")
+  reviewerAssignments  Article[]        @relation("ArticleAssignedReviewer")
+  editorAssignments    Article[]        @relation("ArticleAssignedEditor")
+  workingCopies        ArticleWorkingCopy[] @relation("WorkingCopyUpdatedBy")
+  createdRevisions     ArticleRevision[] @relation("RevisionCreatedBy")
+  articleReviews       ArticleReview[]   @relation("ReviewCreatedBy")
+  articleApprovals     ArticleApproval[] @relation("ApprovalCreatedBy")
+  editorialComments    EditorialComment[] @relation("CommentCreatedBy")
+  uploadedMedia        MediaAsset[]      @relation("MediaUploadedBy")
+
+  @@index([status, deletedAt])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  userId    String   @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id") @db.Uuid
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(6)
+  scope                  String?
+  password               String?
+  createdAt              DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user                   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model AuthorProfile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @map("user_id") @db.Uuid
+  slug        String   @unique @db.VarChar(120)
+  displayName String   @map("display_name")
+  bio         String?
+  jobTitle    String?  @map("job_title")
+  avatarAssetId String? @map("avatar_asset_id") @db.Uuid
+  isPublic    Boolean  @default(true) @map("is_public")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  avatarAsset   MediaAsset?          @relation("AuthorAvatar", fields: [avatarAssetId], references: [id], onDelete: SetNull)
+  primaryArticles Article[]          @relation("ArticlePrimaryAuthor")
+  workingCopies ArticleWorkingCopy[]
+  revisions     ArticleRevision[]
+
+  @@map("author_profile")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique @db.VarChar(80)
+  name        String
+  description String?
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@map("role")
+}
+
+model Permission {
+  id          String          @id @default(uuid()) @db.Uuid
+  resource    String          @db.VarChar(80)
+  action      String          @db.VarChar(80)
+  scope       PermissionScope
+  description String?
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  rolePermissions RolePermission[]
+
+  @@unique([resource, action, scope])
+  @@map("permission")
+}
+
+model UserRole {
+  id           String    @id @default(uuid()) @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  roleId       String    @map("role_id") @db.Uuid
+  assignedById String?   @map("assigned_by_id") @db.Uuid
+  assignedAt   DateTime  @default(now()) @map("assigned_at") @db.Timestamptz(6)
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(6)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedById  String?   @map("revoked_by_id") @db.Uuid
+
+  user       User  @relation("UserRoleUser", fields: [userId], references: [id], onDelete: Restrict)
+  role       Role  @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  assignedBy User? @relation("UserRoleAssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  revokedBy  User? @relation("UserRoleRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@index([userId, revokedAt, expiresAt])
+  @@index([roleId, revokedAt, expiresAt])
+  @@map("user_role")
+}
+
+model RolePermission {
+  id           String    @id @default(uuid()) @db.Uuid
+  roleId       String    @map("role_id") @db.Uuid
+  permissionId String    @map("permission_id") @db.Uuid
+  grantedById  String?   @map("granted_by_id") @db.Uuid
+  grantedAt    DateTime  @default(now()) @map("granted_at") @db.Timestamptz(6)
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(6)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(6)
+  revokedById  String?   @map("revoked_by_id") @db.Uuid
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict)
+  grantedBy  User?      @relation("RolePermissionGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+  revokedBy  User?      @relation("RolePermissionRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@index([roleId, revokedAt, expiresAt])
+  @@map("role_permission")
+}
+
+model Category {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String    @unique @db.VarChar(120)
+  description String?
+  parentId    String?   @map("parent_id") @db.Uuid
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  parent        Category?            @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children      Category[]           @relation("CategoryTree")
+  workingCopies ArticleWorkingCopy[]
+  revisions     ArticleRevision[]
+
+  @@index([parentId, sortOrder])
+  @@map("category")
+}
+
+model Tag {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String    @unique @db.VarChar(120)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  revisionTags ArticleRevisionTag[]
+
+  @@map("tag")
+}
+
+model MediaFolder {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String    @unique @db.VarChar(120)
+  parentId  String?   @map("parent_id") @db.Uuid
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  parent   MediaFolder?  @relation("MediaFolderTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children MediaFolder[] @relation("MediaFolderTree")
+  assets   MediaAsset[]
+
+  @@map("media_folder")
+}
+
+model MediaAsset {
+  id              String          @id @default(uuid()) @db.Uuid
+  folderId        String?         @map("folder_id") @db.Uuid
+  storageProvider String          @map("storage_provider") @db.VarChar(40)
+  bucket          String
+  objectKey       String          @map("object_key")
+  publicUrl       String?         @map("public_url")
+  mimeType        String          @map("mime_type")
+  sizeBytes       BigInt          @map("size_bytes")
+  width           Int?
+  height          Int?
+  durationSeconds Int?            @map("duration_seconds")
+  checksumSha256  String          @map("checksum_sha256") @db.Char(64)
+  status          MediaStatus     @default(UPLOADING)
+  visibility      MediaVisibility @default(PRIVATE)
+  defaultAltText  String?         @map("default_alt_text")
+  defaultCredit   String?         @map("default_credit")
+  license         String?
+  technicalMetadata Json?         @map("technical_metadata") @db.JsonB
+  uploadedById    String          @map("uploaded_by_id") @db.Uuid
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz(6)
+
+  folder          MediaFolder?          @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  uploadedBy      User                  @relation("MediaUploadedBy", fields: [uploadedById], references: [id], onDelete: Restrict)
+  avatars         AuthorProfile[]       @relation("AuthorAvatar")
+  workingCopyHeroes ArticleWorkingCopy[]
+  revisionMedia   ArticleRevisionMedia[]
+  seoOgImages     SeoMetadata[]
+
+  @@unique([bucket, objectKey])
+  @@index([checksumSha256])
+  @@index([status, deletedAt])
+  @@map("media_asset")
+}
+
+model Article {
+  id                   String            @id @default(uuid()) @db.Uuid
+  editorialStatus      EditorialStatus   @default(DRAFT) @map("editorial_status")
+  publicationStatus    PublicationStatus @default(NEVER_PUBLISHED) @map("publication_status")
+  publicSlug           String?           @unique @map("public_slug") @db.VarChar(180)
+  currentRevisionId    String?           @unique @map("current_revision_id") @db.Uuid
+  approvedRevisionId   String?           @unique @map("approved_revision_id") @db.Uuid
+  publishedRevisionId  String?           @unique @map("published_revision_id") @db.Uuid
+  scheduledRevisionId  String?           @unique @map("scheduled_revision_id") @db.Uuid
+  primaryAuthorProfileId String?          @map("primary_author_profile_id") @db.Uuid
+  assignedReviewerId   String?           @map("assigned_reviewer_id") @db.Uuid
+  assignedEditorId     String?           @map("assigned_editor_id") @db.Uuid
+  priority             Int               @default(0)
+  isUrgent             Boolean           @default(false) @map("is_urgent")
+  isFeatured           Boolean           @default(false) @map("is_featured")
+  scheduledAt          DateTime?         @map("scheduled_at") @db.Timestamptz(6)
+  firstPublishedAt     DateTime?         @map("first_published_at") @db.Timestamptz(6)
+  publishedAt          DateTime?         @map("published_at") @db.Timestamptz(6)
+  unpublishedAt        DateTime?         @map("unpublished_at") @db.Timestamptz(6)
+  archivedAt           DateTime?         @map("archived_at") @db.Timestamptz(6)
+  lockVersion          Int               @default(0) @map("lock_version")
+  createdById          String            @map("created_by_id") @db.Uuid
+  updatedById          String            @map("updated_by_id") @db.Uuid
+  deletedById          String?           @map("deleted_by_id") @db.Uuid
+  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt            DateTime?         @map("deleted_at") @db.Timestamptz(6)
+
+  createdBy         User           @relation("ArticleCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  primaryAuthor     AuthorProfile? @relation("ArticlePrimaryAuthor", fields: [primaryAuthorProfileId], references: [id], onDelete: SetNull)
+  assignedReviewer User?          @relation("ArticleAssignedReviewer", fields: [assignedReviewerId], references: [id], onDelete: SetNull)
+  assignedEditor   User?          @relation("ArticleAssignedEditor", fields: [assignedEditorId], references: [id], onDelete: SetNull)
+  workingCopy      ArticleWorkingCopy?
+  revisions        ArticleRevision[] @relation("ArticleRevisions")
+  currentRevision  ArticleRevision? @relation("ArticleCurrentRevision", fields: [currentRevisionId], references: [id], onDelete: Restrict)
+  approvedRevision ArticleRevision? @relation("ArticleApprovedRevision", fields: [approvedRevisionId], references: [id], onDelete: Restrict)
+  publishedRevision ArticleRevision? @relation("ArticlePublishedRevision", fields: [publishedRevisionId], references: [id], onDelete: Restrict)
+  scheduledRevision ArticleRevision? @relation("ArticleScheduledRevision", fields: [scheduledRevisionId], references: [id], onDelete: Restrict)
+  reviews           ArticleReview[]
+  approvals         ArticleApproval[]
+  workflowEvents    ArticleWorkflowEvent[]
+  comments          EditorialComment[]
+  homepageItems     HomepageItem[]
+
+  @@index([publicationStatus, publishedAt(sort: Desc)])
+  @@index([editorialStatus, updatedAt(sort: Desc)])
+  @@index([assignedReviewerId, editorialStatus])
+  @@index([assignedEditorId, editorialStatus])
+  @@index([isUrgent, isFeatured, priority(sort: Desc), publishedAt(sort: Desc)])
+  @@index([scheduledAt])
+  @@map("article")
+}
+
+model ArticleWorkingCopy {
+  articleId          String      @id @map("article_id") @db.Uuid
+  basedOnRevisionId  String?     @map("based_on_revision_id") @db.Uuid
+  title              String      @default("")
+  subtitle           String?
+  proposedSlug       String      @default("") @map("proposed_slug") @db.VarChar(180)
+  summary            String      @default("")
+  bodyJson           Json        @map("body_json") @db.JsonB
+  bodyHtml           String      @default("") @map("body_html")
+  authorProfileId    String?     @map("author_profile_id") @db.Uuid
+  categoryId         String?     @map("category_id") @db.Uuid
+  heroMediaAssetId   String?     @map("hero_media_asset_id") @db.Uuid
+  heroAltText        String?     @map("hero_alt_text")
+  heroCaption        String?     @map("hero_caption")
+  heroCredit         String?     @map("hero_credit")
+  location           String?
+  occurredAt         DateTime?   @map("occurred_at") @db.Timestamptz(6)
+  contentKind        ContentKind @default(NEWS) @map("content_kind")
+  isExclusive        Boolean     @default(false) @map("is_exclusive")
+  isSponsored        Boolean     @default(false) @map("is_sponsored")
+  sponsorDisclosure  String?     @map("sponsor_disclosure")
+  isSensitive        Boolean     @default(false) @map("is_sensitive")
+  allowComments      Boolean     @default(false) @map("allow_comments")
+  tagIds             Json        @default("[]") @map("tag_ids") @db.JsonB
+  sources            Json        @default("[]") @db.JsonB
+  mediaUsages        Json        @default("[]") @map("media_usages") @db.JsonB
+  seoDraft           Json?       @map("seo_draft") @db.JsonB
+  geoDraft           Json?       @map("geo_draft") @db.JsonB
+  lockVersion        Int         @default(0) @map("lock_version")
+  lastAutosavedAt    DateTime?   @map("last_autosaved_at") @db.Timestamptz(6)
+  updatedById        String      @map("updated_by_id") @db.Uuid
+  updatedAt          DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  article          Article         @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  basedOnRevision  ArticleRevision? @relation(fields: [basedOnRevisionId], references: [id], onDelete: Restrict)
+  authorProfile    AuthorProfile?  @relation(fields: [authorProfileId], references: [id], onDelete: SetNull)
+  category         Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  heroMediaAsset   MediaAsset?     @relation(fields: [heroMediaAssetId], references: [id], onDelete: SetNull)
+  updatedBy        User            @relation("WorkingCopyUpdatedBy", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@map("article_working_copy")
+}
+
+model ArticleRevision {
+  id                    String             @id @default(uuid()) @db.Uuid
+  articleId             String             @map("article_id") @db.Uuid
+  version               Int
+  basedOnRevisionId     String?            @map("based_on_revision_id") @db.Uuid
+  restoredFromRevisionId String?           @map("restored_from_revision_id") @db.Uuid
+  checkpoint            RevisionCheckpoint @default(SUBMITTED)
+  title                 String
+  subtitle              String?
+  slug                  String             @db.VarChar(180)
+  summary               String
+  bodyJson              Json               @map("body_json") @db.JsonB
+  bodyHtml              String             @map("body_html")
+  authorProfileId       String              @map("author_profile_id") @db.Uuid
+  categoryId            String              @map("category_id") @db.Uuid
+  location              String?
+  occurredAt            DateTime?           @map("occurred_at") @db.Timestamptz(6)
+  contentKind           ContentKind         @map("content_kind")
+  isExclusive           Boolean             @default(false) @map("is_exclusive")
+  isSponsored           Boolean             @default(false) @map("is_sponsored")
+  sponsorDisclosure     String?              @map("sponsor_disclosure")
+  isSensitive           Boolean             @default(false) @map("is_sensitive")
+  allowComments         Boolean             @default(false) @map("allow_comments")
+  changeSummary         String?              @map("change_summary")
+  contentHash           String               @map("content_hash") @db.Char(64)
+  createdById           String               @map("created_by_id") @db.Uuid
+  createdAt             DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  article             Article               @relation("ArticleRevisions", fields: [articleId], references: [id], onDelete: Restrict)
+  basedOnRevision     ArticleRevision?       @relation("RevisionBase", fields: [basedOnRevisionId], references: [id], onDelete: Restrict)
+  derivedRevisions    ArticleRevision[]      @relation("RevisionBase")
+  restoredFromRevision ArticleRevision?      @relation("RevisionRestore", fields: [restoredFromRevisionId], references: [id], onDelete: Restrict)
+  restoredRevisions   ArticleRevision[]      @relation("RevisionRestore")
+  authorProfile       AuthorProfile          @relation(fields: [authorProfileId], references: [id], onDelete: Restrict)
+  category            Category               @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy           User                   @relation("RevisionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  workingCopies       ArticleWorkingCopy[]
+  currentFor          Article?               @relation("ArticleCurrentRevision")
+  approvedFor         Article?               @relation("ArticleApprovedRevision")
+  publishedFor        Article?               @relation("ArticlePublishedRevision")
+  scheduledFor        Article?               @relation("ArticleScheduledRevision")
+  sources             ArticleSource[]
+  tags                ArticleRevisionTag[]
+  media               ArticleRevisionMedia[]
+  seoMetadata         SeoMetadata?
+  geoMetadata         GeoMetadata?
+  seoAudits           SeoAudit[]
+  reviews             ArticleReview[]
+  approvals           ArticleApproval[]
+  workflowEvents      ArticleWorkflowEvent[]
+  comments            EditorialComment[]
+
+  @@unique([articleId, version])
+  @@index([articleId, createdAt(sort: Desc)])
+  @@map("article_revision")
+}
+
+model ArticleSource {
+  id          String      @id @default(uuid()) @db.Uuid
+  revisionId  String      @map("revision_id") @db.Uuid
+  sourceClass SourceClass @map("source_class")
+  kind        SourceKind
+  name        String?
+  publisher   String?
+  title       String?
+  url         String?
+  publishedAt DateTime?   @map("published_at") @db.Timestamptz(6)
+  accessedAt  DateTime?   @map("accessed_at") @db.Timestamptz(6)
+  publicNote  String?     @map("public_note")
+  isOfficial  Boolean     @default(false) @map("is_official")
+  position    Int         @default(0)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  revision ArticleRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+
+  @@index([revisionId, position])
+  @@map("article_source")
+}
+
+model ArticleRevisionTag {
+  revisionId String @map("revision_id") @db.Uuid
+  tagId      String @map("tag_id") @db.Uuid
+
+  revision ArticleRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  tag      Tag             @relation(fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([revisionId, tagId])
+  @@index([tagId])
+  @@map("article_revision_tag")
+}
+
+model ArticleRevisionMedia {
+  id           String    @id @default(uuid()) @db.Uuid
+  revisionId   String    @map("revision_id") @db.Uuid
+  mediaAssetId String    @map("media_asset_id") @db.Uuid
+  role         MediaRole
+  position     Int       @default(0)
+  altText      String?   @map("alt_text")
+  caption      String?
+  credit       String?
+
+  revision   ArticleRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  mediaAsset MediaAsset     @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+
+  @@unique([revisionId, mediaAssetId, role, position])
+  @@index([revisionId, role, position])
+  @@index([mediaAssetId])
+  @@map("article_revision_media")
+}
+
+model ArticleReview {
+  id           String         @id @default(uuid()) @db.Uuid
+  articleId    String         @map("article_id") @db.Uuid
+  revisionId   String         @map("revision_id") @db.Uuid
+  reviewerId   String         @map("reviewer_id") @db.Uuid
+  decision     ReviewDecision
+  comment      String?
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  article  Article         @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  revision ArticleRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  reviewer User            @relation("ReviewCreatedBy", fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([articleId, createdAt(sort: Desc)])
+  @@index([revisionId, decision])
+  @@map("article_review")
+}
+
+model ArticleApproval {
+  id         String   @id @default(uuid()) @db.Uuid
+  articleId  String   @map("article_id") @db.Uuid
+  revisionId String   @map("revision_id") @db.Uuid
+  approvedById String @map("approved_by_id") @db.Uuid
+  note       String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  article    Article         @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  revision   ArticleRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  approvedBy User            @relation("ApprovalCreatedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+
+  @@unique([articleId, revisionId])
+  @@index([approvedById, createdAt(sort: Desc)])
+  @@map("article_approval")
+}
+
+model SeoMetadata {
+  id                   String             @id @default(uuid()) @db.Uuid
+  revisionId           String             @unique @map("revision_id") @db.Uuid
+  seoTitle             String?            @map("seo_title")
+  metaDescription      String?            @map("meta_description")
+  canonicalUrlOverride String?            @map("canonical_url_override")
+  indexPolicy          IndexPolicy        @default(INDEX_FOLLOW) @map("index_policy")
+  ogTitle              String?            @map("og_title")
+  ogDescription        String?            @map("og_description")
+  ogImageAssetId       String?            @map("og_image_asset_id") @db.Uuid
+  twitterCard          String?            @map("twitter_card")
+  structuredDataType   StructuredDataType @default(NEWS_ARTICLE) @map("structured_data_type")
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  revision     ArticleRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  ogImageAsset MediaAsset?     @relation(fields: [ogImageAssetId], references: [id], onDelete: SetNull)
+
+  @@map("seo_metadata")
+}
+
+model GeoMetadata {
+  id                 String   @id @default(uuid()) @db.Uuid
+  revisionId         String   @unique @map("revision_id") @db.Uuid
+  schemaVersion      Int      @default(1) @map("schema_version")
+  shortAnswer        String?  @map("short_answer")
+  executiveSummary   String?  @map("executive_summary")
+  keyFacts           Json?    @map("key_facts") @db.JsonB
+  context            String?
+  whatHappened       String?  @map("what_happened")
+  whereHappened      String?  @map("where_happened")
+  whenHappened       String?  @map("when_happened")
+  whoIsInvolved      String?  @map("who_is_involved")
+  whyRelevant        String?  @map("why_relevant")
+  whatHappensNext    String?  @map("what_happens_next")
+  entities           Json?    @db.JsonB
+  relevantDates      Json?    @map("relevant_dates") @db.JsonB
+  numbers            Json?    @db.JsonB
+  faqs               Json?    @db.JsonB
+  lastVerifiedAt     DateTime? @map("last_verified_at") @db.Timestamptz(6)
+  verifiedById       String?  @map("verified_by_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  revision ArticleRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+
+  @@map("geo_metadata")
+}
+
+model SeoAudit {
+  id            String         @id @default(uuid()) @db.Uuid
+  revisionId    String         @map("revision_id") @db.Uuid
+  ruleCode      String         @map("rule_code") @db.VarChar(100)
+  severity      SeoSeverity
+  field         String?
+  message       String
+  status        SeoAuditStatus @default(OPEN)
+  ignoredReason String?        @map("ignored_reason")
+  ignoredById   String?        @map("ignored_by_id") @db.Uuid
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  resolvedAt    DateTime?      @map("resolved_at") @db.Timestamptz(6)
+
+  revision ArticleRevision @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+
+  @@index([revisionId, severity, status])
+  @@map("seo_audit")
+}
+
+model ArticleWorkflowEvent {
+  id             String             @id @default(uuid()) @db.Uuid
+  articleId      String             @map("article_id") @db.Uuid
+  revisionId     String?            @map("revision_id") @db.Uuid
+  fromEditorialStatus EditorialStatus? @map("from_editorial_status")
+  toEditorialStatus   EditorialStatus? @map("to_editorial_status")
+  fromPublicationStatus PublicationStatus? @map("from_publication_status")
+  toPublicationStatus   PublicationStatus? @map("to_publication_status")
+  action         String             @db.VarChar(80)
+  actorType      ActorType          @default(USER) @map("actor_type")
+  actorUserId    String?            @map("actor_user_id") @db.Uuid
+  reason         String?
+  metadata       Json?              @db.JsonB
+  occurredAt     DateTime           @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  article  Article          @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  revision ArticleRevision? @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+
+  @@index([articleId, occurredAt])
+  @@map("article_workflow_event")
+}
+
+model EditorialComment {
+  id           String               @id @default(uuid()) @db.Uuid
+  articleId    String               @map("article_id") @db.Uuid
+  revisionId   String?              @map("revision_id") @db.Uuid
+  authorId     String               @map("author_id") @db.Uuid
+  kind         EditorialCommentKind @default(GENERAL)
+  body         String
+  resolvedAt   DateTime?            @map("resolved_at") @db.Timestamptz(6)
+  resolvedById String?              @map("resolved_by_id") @db.Uuid
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  article  Article          @relation(fields: [articleId], references: [id], onDelete: Restrict)
+  revision ArticleRevision? @relation(fields: [revisionId], references: [id], onDelete: Restrict)
+  author   User             @relation("CommentCreatedBy", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([articleId, createdAt])
+  @@map("editorial_comment")
+}
+
+model HomepageSection {
+  id           String                @id @default(uuid()) @db.Uuid
+  key          String                @unique @db.VarChar(80)
+  type         HomepageSectionType
+  title        String
+  subtitle     String?
+  sourceMode   HomepageSourceMode    @map("source_mode")
+  config       Json?                 @db.JsonB
+  position     Int                   @default(0)
+  isActive     Boolean               @default(true) @map("is_active")
+  visibleFrom  DateTime?             @map("visible_from") @db.Timestamptz(6)
+  visibleUntil DateTime?             @map("visible_until") @db.Timestamptz(6)
+  createdAt    DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt    DateTime?             @map("deleted_at") @db.Timestamptz(6)
+
+  items HomepageItem[]
+
+  @@index([isActive, position])
+  @@map("homepage_section")
+}
+
+model HomepageItem {
+  id           String       @id @default(uuid()) @db.Uuid
+  sectionId    String       @map("section_id") @db.Uuid
+  articleId    String       @map("article_id") @db.Uuid
+  position     Int          @default(0)
+  device       DeviceTarget @default(ALL)
+  visibleFrom  DateTime?    @map("visible_from") @db.Timestamptz(6)
+  visibleUntil DateTime?    @map("visible_until") @db.Timestamptz(6)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  section HomepageSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  article Article         @relation(fields: [articleId], references: [id], onDelete: Restrict)
+
+  @@unique([sectionId, articleId, device])
+  @@index([sectionId, position])
+  @@map("homepage_item")
+}
+
+model Redirect {
+  id              String    @id @default(uuid()) @db.Uuid
+  sourcePath      String    @unique @map("source_path")
+  destinationPath String    @map("destination_path")
+  statusCode      Int       @default(301) @map("status_code")
+  startsAt        DateTime? @map("starts_at") @db.Timestamptz(6)
+  endsAt          DateTime? @map("ends_at") @db.Timestamptz(6)
+  createdById     String    @map("created_by_id") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("redirect")
+}
+
+model AuditLog {
+  id            String    @id @default(uuid()) @db.Uuid
+  actorType     ActorType @default(USER) @map("actor_type")
+  actorUserId   String?   @map("actor_user_id") @db.Uuid
+  action        String    @db.VarChar(100)
+  resourceType  String    @map("resource_type") @db.VarChar(100)
+  resourceId    String    @map("resource_id")
+  requestId     String?   @map("request_id")
+  beforeSummary Json?     @map("before_summary") @db.JsonB
+  afterSummary  Json?     @map("after_summary") @db.JsonB
+  metadata      Json?     @db.JsonB
+  reason        String?
+  occurredAt    DateTime  @default(now()) @map("occurred_at") @db.Timestamptz(6)
+
+  @@index([resourceType, resourceId, occurredAt(sort: Desc)])
+  @@index([actorUserId, occurredAt(sort: Desc)])
+  @@index([action, occurredAt(sort: Desc)])
+  @@map("audit_log")
+}
+
+model YouTubeVideo {
+  id           String   @id @default(uuid()) @db.Uuid
+  youtubeUrl   String   @map("youtube_url")
+  youtubeId    String   @map("youtube_id") @db.VarChar(50)
+  title        String
+  description  String?
+  duration     String?  @db.VarChar(20)
+  viewCount    String?  @map("view_count") @db.VarChar(50)
+  thumbnailUrl String?  @map("thumbnail_url")
+  isFeatured   Boolean  @default(false) @map("is_featured")
+  position     Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([position])
+  @@map("youtube_video")
+}
+
+model Presenter {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  role      String?
+  bio       String?
+  imageUrl  String?  @map("image_url")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  programs Program[]
+
+  @@map("presenter")
+}
+
+model Program {
+  id           String   @id @default(uuid()) @db.Uuid
+  title        String
+  slug         String   @unique @db.VarChar(120)
+  description  String?
+  scheduleText String?  @map("schedule_text")
+  imageUrl     String?  @map("image_url")
+  presenterId  String?  @map("presenter_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  presenter     Presenter?     @relation(fields: [presenterId], references: [id], onDelete: SetNull)
+  scheduleSlots ScheduleSlot[]
+
+  @@map("program")
+}
+
+model ScheduleSlot {
+  id        String   @id @default(uuid()) @db.Uuid
+  programId String   @map("program_id") @db.Uuid
+  dayOfWeek Int      @map("day_of_week")
+  startTime String   @map("start_time") @db.VarChar(10)
+  endTime   String   @map("end_time") @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@index([dayOfWeek, startTime])
+  @@map("schedule_slot")
+}
+
+model TouristSpot {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  slug        String   @unique @db.VarChar(120)
+  category    String   @db.VarChar(80)
+  description String
+  location    String
+  hours       String?
+  imageUrl    String?  @map("image_url")
+  highlights  Json     @default("[]") @db.JsonB
+  isFeatured  Boolean  @default(false) @map("is_featured")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([category])
+  @@map("tourist_spot")
+}
+
+model Event {
+  id          String    @id @default(uuid()) @db.Uuid
+  title       String
+  slug        String    @unique @db.VarChar(120)
+  category    String    @db.VarChar(80)
+  description String
+  location    String
+  startDate   DateTime  @map("start_date") @db.Timestamptz(6)
+  endDate     DateTime? @map("end_date") @db.Timestamptz(6)
+  timeText    String?   @map("time_text")
+  imageUrl    String?   @map("image_url")
+  isFeatured  Boolean   @default(false) @map("is_featured")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([startDate(sort: Asc)])
+  @@map("event")
+}
+
+model Podcast {
+  id          String   @id @default(uuid()) @db.Uuid
+  title       String
+  slug        String   @unique @db.VarChar(120)
+  host        String
+  description String
+  imageUrl    String?  @map("image_url")
+  category    String?  @db.VarChar(80)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  episodes PodcastEpisode[]
+
+  @@map("podcast")
+}
+
+model PodcastEpisode {
+  id          String   @id @default(uuid()) @db.Uuid
+  podcastId   String   @map("podcast_id") @db.Uuid
+  title       String
+  slug        String   @db.VarChar(120)
+  description String
+  audioUrl    String?  @map("audio_url")
+  duration    String?  @db.VarChar(20)
+  publishedAt DateTime @default(now()) @map("published_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  podcast Podcast @relation(fields: [podcastId], references: [id], onDelete: Cascade)
+
+  @@unique([podcastId, slug])
+  @@index([publishedAt(sort: Desc)])
+  @@map("podcast_episode")
+}
+
+model Sponsor {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  imageUrl  String   @map("image_url")
+  linkUrl   String   @map("link_url")
+  placement String   @default("HOME_PATROCINADORES") @db.VarChar(80)
+  isActive  Boolean  @default(true) @map("is_active")
+  position  Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([placement, isActive, position])
+  @@map("sponsor")
+}
+
+

@@ -1,0 +1,45 @@
+{
+  "name": "@triunfo/web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tiptap/core": "3.29.2",
+    "@tiptap/extension-image": "3.29.2",
+    "@tiptap/extension-link": "3.29.2",
+    "@tiptap/pm": "3.29.2",
+    "@tiptap/react": "3.29.2",
+    "@tiptap/starter-kit": "3.29.2",
+    "@triunfo/auth": "workspace:*",
+    "@triunfo/config": "workspace:*",
+    "@triunfo/database": "workspace:*",
+    "@triunfo/seo": "workspace:*",
+    "@triunfo/types": "workspace:*",
+    "@triunfo/ui": "workspace:*",
+    "@triunfo/validation": "workspace:*",
+    "better-auth": "1.6.25",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.548.0",
+    "next": "16.2.12",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "sanitize-html": "2.17.6",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/sanitize-html": "^2.16.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "16.2.12",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3"
+  }
+}

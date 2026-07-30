@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+.next/
+dist/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# generated
+packages/database/src/generated/
+
+# environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# logs and OS
+*.log
+.DS_Store
+Thumbs.db
+
+# editors
+.idea/
+.vscode/
+
+# object storage / local database
+.data/

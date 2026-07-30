@@ -1,0 +1,25 @@
+{
+  "name": "@triunfo/auth",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./policy": "./src/policy.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@triunfo/config": "workspace:*",
+    "@triunfo/database": "workspace:*",
+    "@triunfo/validation": "workspace:*",
+    "better-auth": "1.6.25"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.10"
+  }
+}
