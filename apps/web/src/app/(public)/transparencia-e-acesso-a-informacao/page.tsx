@@ -1,6 +1,6 @@
 import { SiteFrame } from "@/components/site/site-frame";
 import { Container } from "@triunfo/ui";
-import { Award, Radio, FileText, MapPin, Phone, Mail, ShieldCheck } from "lucide-react";
+import { Award, Radio, MapPin, Phone, Mail, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {

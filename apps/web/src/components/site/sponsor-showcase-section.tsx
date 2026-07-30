@@ -1,5 +1,5 @@
 import { Container } from "@triunfo/ui";
-import { ExternalLink, Award, Sparkles, Star, Store, Utensils, Hotel, Wine } from "lucide-react";
+import { ExternalLink, Award, Sparkles, Star, Store } from "lucide-react";
 import type { SponsorItem } from "@/modules/sponsors/queries";
 
 const DEFAULT_SPONSORS: SponsorItem[] = [

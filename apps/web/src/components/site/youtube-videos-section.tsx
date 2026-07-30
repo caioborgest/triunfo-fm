@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Youtube, Play, ExternalLink, X, Clock, Eye } from "lucide-react";
+import { Youtube, Play, ExternalLink, X, Eye } from "lucide-react";
 import { Container } from "@triunfo/ui";
 
 export interface YouTubeVideoData {

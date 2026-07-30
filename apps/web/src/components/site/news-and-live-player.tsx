@@ -26,7 +26,6 @@ export function NewsAndLivePlayerSection({ articles }: NewsAndLivePlayerSectionP
   const [isPlaying, setIsPlaying] = useState(false);
 
   const mainArticle = articles && articles.length > 0 ? articles[0] : null;
-  const secondaryArticles = articles && articles.length > 1 ? articles.slice(1, 4) : [];
 
   return (
     <section className="py-14" id="player-ao-vivo">

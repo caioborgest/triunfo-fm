@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { getPodcasts } from "@/modules/podcasts/queries";
 import { createPodcastAction, deletePodcastAction } from "@/modules/podcasts/actions";
 import { requireActor } from "@/lib/auth";
-import { Mic, Plus, Trash2, User, Music } from "lucide-react";
+import { Mic, Plus, Trash2, User } from "lucide-react";
 
 export default async function AdminPodcastsPage() {
   await requireActor();

@@ -1,6 +1,6 @@
 import { SiteFrame } from "@/components/site/site-frame";
 import { Container } from "@triunfo/ui";
-import { ShieldCheck, Lock, Mail, FileText } from "lucide-react";
+import { ShieldCheck, Lock, Mail } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
