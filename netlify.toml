@@ -1,0 +1,11 @@
+[build]
+  command = "pnpm --filter @triunfo/web... run build"
+  publish = "apps/web/.next"
+
+[build.environment]
+  NODE_VERSION = "24.13.0"
+  PNPM_VERSION = "11.9.0"
+  NODE_OPTIONS = "--max-old-space-size=4096"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
