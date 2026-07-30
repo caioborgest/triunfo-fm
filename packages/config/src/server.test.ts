@@ -58,11 +58,12 @@ describe("getServerEnvironment", () => {
     ).toBe("http://localhost:3000");
   });
 
-  it("recusa HTTP e segredo de exemplo em produção", () => {
+  it("recusa HTTP não-localhost e segredo de exemplo em produção", () => {
     expect(() =>
       getServerEnvironment({
         ...validEnvironment,
         NODE_ENV: "production",
+        BETTER_AUTH_URL: "http://example.com",
         BETTER_AUTH_SECRET:
           "replace-with-a-real-production-secret-that-is-long-enough",
       }),

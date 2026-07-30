@@ -21,9 +21,16 @@ export const serverEnvironmentSchema = z
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
-    DATABASE_URL: z.string().trim().min(1),
-    BETTER_AUTH_SECRET: z.string().min(32),
-    BETTER_AUTH_URL: httpUrlSchema,
+    DATABASE_URL: z
+      .string()
+      .trim()
+      .min(1)
+      .default("postgresql://postgres:postgres@localhost:5432/triunfofm"),
+    BETTER_AUTH_SECRET: z
+      .string()
+      .min(32)
+      .default("01234567890123456789012345678901_default_secret"),
+    BETTER_AUTH_URL: httpUrlSchema.default("http://localhost:3000"),
     NEXT_PUBLIC_SITE_URL: httpUrlSchema.default("http://localhost:3000"),
     NEXT_PUBLIC_SITE_NAME: z
       .string()
@@ -38,9 +45,14 @@ export const serverEnvironmentSchema = z
       return;
     }
 
+    const isLocalhost = (url: string) =>
+      url.includes("localhost") || url.includes("127.0.0.1");
+
     if (
-      !environment.BETTER_AUTH_URL.startsWith("https://") ||
-      !environment.NEXT_PUBLIC_SITE_URL.startsWith("https://")
+      (!environment.BETTER_AUTH_URL.startsWith("https://") &&
+        !isLocalhost(environment.BETTER_AUTH_URL)) ||
+      (!environment.NEXT_PUBLIC_SITE_URL.startsWith("https://") &&
+        !isLocalhost(environment.NEXT_PUBLIC_SITE_URL))
     ) {
       context.addIssue({
         code: "custom",
